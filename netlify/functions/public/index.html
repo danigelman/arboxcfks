@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CFKS · Atir Yeda — Gym Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f7f6f3; --surface: #ffffff; --border: #e4e2dc; --border2: #d0cec6;
+      --text: #1a1916; --muted: #6b6860; --faint: #9b9890;
+      --green: #2d6a4f; --green-bg: #d8f3dc;
+      --red: #9b2226; --red-bg: #fde8e8;
+      --now-bg: #fffbe6; --now-border: #e6c700;
+      --radius-sm: 6px; --radius-lg: 14px;
+      --mono: 'DM Mono', monospace; --sans: 'DM Sans', system-ui, sans-serif;
+    }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1.5rem 4rem; }
+    .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; max-width: 960px; margin-left: auto; margin-right: auto; flex-wrap: wrap; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-icon { width: 38px; height: 38px; border-radius: 10px; background: var(--text); display: flex; align-items: center; justify-content: center; }
+    .brand-icon svg { width: 20px; height: 20px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; }
+    .brand-name { font-size: 17px; font-weight: 500; }
+    .brand-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .clock-time { font-family: var(--mono); font-size: 22px; font-weight: 500; }
+    .clock-date { font-size: 12px; color: var(--muted); margin-top: 1px; text-align: right; }
+    .live-pill { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: 20px; background: var(--green-bg); color: var(--green); }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+    .btn { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; font-family: var(--sans); cursor: pointer; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+    .btn:hover { background: var(--bg); }
+    .btn svg { width: 13px; height: 13px; flex-shrink: 0; }
+    .btn.spinning svg { animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1rem; max-width: 960px; margin: 0 auto; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem 1.5rem; }
+    .card.span-5 { grid-column: span 5; }
+    .card.span-7 { grid-column: span 7; }
+    .card.span-12 { grid-column: span 12; }
+    @media (max-width: 640px) { .card.span-5, .card.span-7, .card.span-12 { grid-column: span 12; } }
+    .card-label { font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); margin-bottom: 1rem; display: flex; align-items: center; gap: 6px; }
+    .card-label svg { width: 12px; height: 12px; }
+    .now-name { font-size: 26px; font-weight: 500; line-height: 1.1; margin-bottom: 4px; }
+    .now-time { font-family: var(--mono); font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+    .pill-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .pill { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border); color: var(--muted); background: var(--bg); }
+    .pill.green { background: var(--green-bg); color: var(--green); border-color: transparent; }
+    .pill.red { background: var(--red-bg); color: var(--red); border-color: transparent; }
+    .no-class { color: var(--faint); font-size: 13px; padding: 1.5rem 0; text-align: center; }
+    .next-list { display: flex; flex-direction: column; gap: 6px; }
+    .next-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    .next-t { font-family: var(--mono); font-size: 12px; color: var(--muted); min-width: 48px; }
+    .next-name { font-size: 13px; font-weight: 500; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .next-coach { font-size: 12px; color: var(--faint); white-space: nowrap; }
+    .wod-sections { display: flex; flex-direction: column; gap: 10px; }
+    .wod-block { border-left: 2px solid var(--border2); padding: 8px 12px; background: var(--bg); border-radius: 0 4px 4px 0; }
+    .wod-block-title { font-size: 10px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: var(--faint); margin-bottom: 4px; }
+    .wod-block-body { font-size: 13px; line-height: 1.65; white-space: pre-wrap; }
+    .sched-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .sched-table th { text-align: left; font-size: 10px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: var(--faint); padding: 0 8px 10px 0; border-bottom: 1px solid var(--border); }
+    .sched-table td { padding: 10px 8px 10px 0; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .sched-table tr:last-child td { border-bottom: none; }
+    .sched-table tr.is-now td { background: var(--now-bg); }
+    .t-time { font-family: var(--mono); color: var(--muted); white-space: nowrap; }
+    .t-name { font-weight: 500; }
+    .t-coach { color: var(--muted); }
+    .now-tag { font-size: 10px; font-weight: 500; padding: 1px 7px; border-radius: 10px; background: var(--now-border); color: #4a3800; margin-left: 6px; }
+    .spots-ok { color: var(--green); font-weight: 500; }
+    .spots-no { color: var(--red); font-weight: 500; }
+    .loading { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--faint); padding: 1rem 0; }
+    .spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--border2); border-top-color: var(--text); animation: spin 0.7s linear infinite; flex-shrink: 0; }
+    .empty { font-size: 13px; color: var(--faint); padding: 0.75rem 0; }
+    .debug-panel { grid-column: span 12; background: #1e1e1e; color: #d4d4d4; border-radius: var(--radius-lg); padding: 1rem 1.25rem; font-family: var(--mono); font-size: 11px; line-height: 1.7; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 500px; overflow-y: auto; }
+    .dg-title { color: #9cdcfe; font-size: 12px; font-weight: 500; margin-bottom: 8px; display: block; }
+    .dg-ok  { color: #4ec9b0; display: block; }
+    .dg-err { color: #f48771; display: block; }
+    .dg-warn { color: #dcdcaa; display: block; }
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-icon"><svg viewBox="0 0 24 24"><path d="M6 12h12M3 8v8M21 8v8M7 6v12M17 6v12"/></svg></div>
+    <div>
+      <div class="brand-name">CFKS · Atir Yeda</div>
+      <div class="brand-sub">Gym Dashboard</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div>
+      <div class="clock-time" id="clock">00:00:00</div>
+      <div class="clock-date" id="date-str"></div>
+    </div>
+    <div class="live-pill"><span class="live-dot"></span>Live</div>
+    <button class="btn" id="refresh-btn" onclick="loadAll()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+      Refresh
+    </button>
+    <button class="btn" onclick="runDebug()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 0 4.93 19.07M4.93 4.93A10 10 0 0 1 19.07 19.07"/></svg>
+      Debug
+    </button>
+  </div>
+</div>
+
+<div class="grid" style="margin-bottom:1rem">
+  <div class="card span-5">
+    <div class="card-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>Current class</div>
+    <div id="now-body"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+  </div>
+  <div class="card span-7">
+    <div class="card-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Coming up today</div>
+    <div id="next-body"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+  </div>
+  <div class="card span-12">
+    <div class="card-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 12h12M3 8v8M21 8v8M7 6v12M17 6v12"/></svg>Workout of the day</div>
+    <div id="wod-body"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+  </div>
+  <div class="card span-12">
+    <div class="card-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Today's full schedule</div>
+    <div id="sched-body"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+  </div>
+</div>
+
+<div class="grid" id="debug-grid" style="display:none;margin-bottom:1rem"></div>
+
+<script>
+const PROXY = '/api/arbox';
+const REFRESH_MS = 5 * 60 * 1000;
+
+function tick() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  document.getElementById('date-str').textContent =
+    now.toLocaleDateString('en-IL', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
+setInterval(tick, 1000); tick();
+
+function pad(n) { return String(n).padStart(2,'0'); }
+function toMin(t) { if(!t) return -1; const [h,m]=t.split(':'); return parseInt(h)*60+parseInt(m||0); }
+function fmt(t) { if(!t) return ''; const [h,m]=t.split(':'); return `${pad(parseInt(h))}:${m||'00'}`; }
+function nowMin() { const n=new Date(); return n.getHours()*60+n.getMinutes(); }
+function isNow(c) {
+  const s=toMin(c.start_time||c.time), e=toMin(c.end_time||c.end), nm=nowMin();
+  return s>=0 && nm>=s && nm<(e>0?e:s+60);
+}
+
+async function apiFetch(action) {
+  const r = await fetch(`${PROXY}?action=${action}`);
+  const text = await r.text();
+  if (!r.ok) throw new Error(text.slice(0,300));
+  return JSON.parse(text);
+}
+
+function normalizeClasses(raw) {
+  const arr = Array.isArray(raw) ? raw : (raw.data||raw.schedule||raw.classes||[]);
+  return arr.sort((a,b) => toMin(a.start_time||a.time)-toMin(b.start_time||b.time));
+}
+
+function renderNow(classes) {
+  const cur = classes.find(isNow);
+  const el = document.getElementById('now-body');
+  if (!cur) { el.innerHTML=`<div class="no-class">No class running right now</div>`; return; }
+  const spots = cur.available_spots;
+  el.innerHTML = `
+    <div class="now-name">${cur.class_name||cur.name||'Class'}</div>
+    <div class="now-time">${fmt(cur.start_time||cur.time)} – ${fmt(cur.end_time||cur.end)}</div>
+    <div class="pill-row">
+      ${cur.coach_name||cur.instructor?`<span class="pill">${cur.coach_name||cur.instructor}</span>`:''}
+      ${spots!=null?`<span class="pill ${spots>0?'green':'red'}">${spots>0?spots+' spots left':'Full'}</span>`:''}
+    </div>`;
+}
+
+function renderNext(classes) {
+  const nm = nowMin();
+  const up = classes.filter(c=>toMin(c.start_time||c.time)>nm).slice(0,5);
+  const el = document.getElementById('next-body');
+  if (!up.length) { el.innerHTML=`<div class="empty">No more classes today 🎉</div>`; return; }
+  el.innerHTML = `<div class="next-list">${up.map(c=>`
+    <div class="next-row">
+      <span class="next-t">${fmt(c.start_time||c.time)}</span>
+      <span class="next-name">${c.class_name||c.name||'Class'}</span>
+      <span class="next-coach">${c.coach_name||c.instructor||''}</span>
+    </div>`).join('')}</div>`;
+}
+
+function renderSchedule(classes) {
+  const el = document.getElementById('sched-body');
+  if (!classes.length) { el.innerHTML=`<div class="empty">No classes found for today.</div>`; return; }
+  el.innerHTML = `<table class="sched-table">
+    <thead><tr><th>Time</th><th>Class</th><th>Coach</th><th>Spots</th></tr></thead>
+    <tbody>${classes.map(c=>{
+      const now=isNow(c), spots=c.available_spots;
+      return `<tr class="${now?'is-now':''}">
+        <td class="t-time">${fmt(c.start_time||c.time)}${c.end_time?' – '+fmt(c.end_time):''}${now?'<span class="now-tag">Now</span>':''}</td>
+        <td class="t-name">${c.class_name||c.name||'Class'}</td>
+        <td class="t-coach">${c.coach_name||c.instructor||'—'}</td>
+        <td>${spots!=null?`<span class="${spots>0?'spots-ok':'spots-no'}">${spots>0?spots:'Full'}</span>`:'—'}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function renderWOD(raw) {
+  const el = document.getElementById('wod-body');
+  const arr = Array.isArray(raw) ? raw : (raw.data||[]);
+  if (!arr.length) { el.innerHTML=`<div class="empty">No workout plan found for today.</div>`; return; }
+  const wod = arr[0];
+  const FIELDS = [
+    {key:'warm_up',label:'Warm-up'},{key:'strength',label:'Strength'},
+    {key:'wod',label:'WOD'},{key:'workout',label:'Workout'},
+    {key:'metcon',label:'MetCon'},{key:'cool_down',label:'Cool-down'},
+    {key:'notes',label:'Notes'},{key:'content',label:'Content'},{key:'description',label:'Description'}
+  ];
+  const sections = FIELDS.filter(f=>wod[f.key]&&String(wod[f.key]).trim());
+  const title = wod.title||wod.name||'';
+  let html = title?`<div style="font-size:18px;font-weight:500;margin-bottom:12px">${title}</div>`:'';
+  if (sections.length) {
+    html += `<div class="wod-sections">${sections.map(f=>`
+      <div class="wod-block">
+        <div class="wod-block-title">${f.label}</div>
+        <div class="wod-block-body">${wod[f.key]}</div>
+      </div>`).join('')}</div>`;
+  } else {
+    html += `<div class="wod-block"><div class="wod-block-body">${JSON.stringify(wod,null,2)}</div></div>`;
+  }
+  el.innerHTML = html;
+}
+
+let refreshTimer = null;
+async function loadAll() {
+  document.getElementById('refresh-btn').classList.add('spinning');
+  const loading = '<div class="loading"><div class="spinner"></div>Loading…</div>';
+  ['now-body','next-body','sched-body','wod-body'].forEach(id=>document.getElementById(id).innerHTML=loading);
+
+  try {
+    const raw = await apiFetch('schedule');
+    const classes = normalizeClasses(raw);
+    renderNow(classes); renderNext(classes); renderSchedule(classes);
+  } catch(e) {
+    ['now-body','next-body','sched-body'].forEach(id=>
+      document.getElementById(id).innerHTML=`<div class="empty" style="color:var(--red)">${e.message}</div>`);
+  }
+
+  try {
+    const raw = await apiFetch('wod');
+    renderWOD(raw);
+  } catch(e) {
+    document.getElementById('wod-body').innerHTML=
+      `<div class="empty" style="color:var(--muted)">WOD unavailable: ${e.message}</div>`;
+  }
+
+  document.getElementById('refresh-btn').classList.remove('spinning');
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(loadAll, REFRESH_MS);
+}
+
+async function runDebug() {
+  const grid = document.getElementById('debug-grid');
+  grid.style.display = 'grid';
+  grid.innerHTML = `<div class="debug-panel"><span class="dg-title">🔍 Running debug via server proxy…</span>Please wait…</div>`;
+  try {
+    const results = await apiFetch('debug');
+    let html = `<div class="debug-panel"><span class="dg-title">🔍 Arbox API Probe — ${new Date().toLocaleTimeString()}</span>`;
+    for (const item of results) {
+      const ok = item.status>=200 && item.status<300;
+      const cls = ok?'dg-ok': item.status===401?'dg-warn':'dg-err';
+      html += `<span class="${cls}">[${item.status}] ${item.url}\n       ↳ ${item.preview}\n</span>`;
+    }
+    html += `</div>`;
+    grid.innerHTML = html;
+  } catch(e) {
+    grid.innerHTML=`<div class="debug-panel"><span class="dg-err">Debug failed: ${e.message}</span></div>`;
+  }
+}
+
+loadAll();
+</script>
+</body>
+</html>
