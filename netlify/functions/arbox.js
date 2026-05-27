@@ -8,10 +8,10 @@ exports.handler = async function(event) {
     return { statusCode: 200, headers, body: '' };
   }
 
-  const API_KEY = 'GEZRKWBW-GUOL-9IHN-L8IY-CHRXSWLGH1WM';
-  const BOX_ID  = '7';
-  const BASE    = 'https://api.arboxapp.com/index.php/api/v2';
-  const action  = (event.queryStringParameters || {}).action || 'schedule';
+  const API_KEY     = 'GEZRKWBW-GUOL-9IHN-L8IY-CHRXSWLGH1WM';
+  const LOCATION_ID = '7';
+  const BASE        = 'https://arboxserver.arboxapp.com/api/public';
+  const action      = (event.queryStringParameters || {}).action || 'schedule';
 
   function todayISO() {
     const d = new Date();
@@ -21,37 +21,52 @@ exports.handler = async function(event) {
   }
 
   const today = todayISO();
+  const auth  = { 'api-key': API_KEY, 'Accept': 'application/json' };
 
-  async function get(url, extraHeaders) {
-    var h = Object.assign({ 'Accept': 'application/json' }, extraHeaders);
-    const r = await fetch(url, { headers: h });
+  async function get(url) {
+    const r = await fetch(url, { headers: auth });
     const t = await r.text();
     return { ok: r.ok, status: r.status, body: t };
   }
 
+  if (action === 'schedule') {
+    try {
+      var url = BASE + '/v3/schedule?location_id=' + LOCATION_ID + '&from_date=' + today + '&to_date=' + today + '&Registration_count=1';
+      var res = await get(url);
+      return { statusCode: res.status, headers: headers, body: res.body };
+    } catch(e) {
+      return { statusCode: 500, headers: headers, body: JSON.stringify({ error: e.message }) };
+    }
+  }
+
+  if (action === 'wod') {
+    try {
+      var url2 = BASE + '/v3/schedule?location_id=' + LOCATION_ID + '&from_date=' + today + '&to_date=' + today;
+      var res2 = await get(url2);
+      return { statusCode: res2.status, headers: headers, body: res2.body };
+    } catch(e) {
+      return { statusCode: 500, headers: headers, body: JSON.stringify({ error: e.message }) };
+    }
+  }
+
   if (action === 'debug') {
-    var baseUrl = BASE + '/schedule?box_fk=' + BOX_ID + '&date_from=' + today + '&date_to=' + today;
     var toTest = [
-      { url: baseUrl, headers: { 'api-key': API_KEY }, label: 'header: api-key' },
-      { url: baseUrl, headers: { 'Authorization': 'Bearer ' + API_KEY }, label: 'header: Bearer' },
-      { url: baseUrl, headers: { 'Authorization': API_KEY }, label: 'header: Authorization' },
-      { url: baseUrl + '&api-key=' + API_KEY, headers: {}, label: 'query: api-key' },
-      { url: baseUrl + '&token=' + API_KEY, headers: {}, label: 'query: token' },
-      { url: baseUrl + '&apiKey=' + API_KEY, headers: {}, label: 'query: apiKey' },
-      { url: BASE + '/schedule?box_fk=' + BOX_ID + '&date_from=' + today + '&date_to=' + today, headers: { 'api-key': API_KEY, 'Authorization': 'Bearer ' + API_KEY }, label: 'both headers' },
-      { url: BASE + '/locations', headers: { 'api-key': API_KEY }, label: 'locations + api-key header' },
+      BASE + '/v3/schedule?location_id=' + LOCATION_ID + '&from_date=' + today + '&to_date=' + today,
+      BASE + '/v3/schedule?from_date=' + today + '&to_date=' + today,
+      BASE + '/v3/schedule/boxCategories',
+      BASE + '/v3/schedule/boxScheduleSettings',
     ];
     var results = [];
     for (var k = 0; k < toTest.length; k++) {
       try {
-        var r = await get(toTest[k].url, toTest[k].headers);
-        results.push({ label: toTest[k].label, status: r.status, preview: r.body.slice(0, 200) });
+        var r = await get(toTest[k]);
+        results.push({ url: toTest[k], status: r.status, preview: r.body.slice(0, 400) });
       } catch(e) {
-        results.push({ label: toTest[k].label, status: 'ERR', preview: e.message });
+        results.push({ url: toTest[k], status: 'ERR', preview: e.message });
       }
     }
     return { statusCode: 200, headers: headers, body: JSON.stringify(results) };
   }
 
-  return { statusCode: 400, headers: headers, body: JSON.stringify({ error: 'Use action=debug' }) };
+  return { statusCode: 400, headers: headers, body: JSON.stringify({ error: 'Unknown action' }) };
 };
