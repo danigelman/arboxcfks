@@ -122,4 +122,266 @@
   <!-- Current class -->
   <div class="card span-5">
     <div class="card-label">
-      <svg viewBox="0 0 24 24"
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Current class
+    </div>
+    <div id="now-body"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+  </div>
+
+  <!-- Current participants -->
+  <div class="card span-7">
+    <div class="card-label">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Participants now
+    </div>
+    <div id="participants-body"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+  </div>
+
+  <!-- WOD -->
+  <div class="card span-5">
+    <div class="card-label">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 12h12M3 8v8M21 8v8M7 6v12M17 6v12"/></svg>
+      Workout of the day
+    </div>
+    <div id="wod-body"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+  </div>
+
+  <!-- Next up -->
+  <div class="card span-7">
+    <div class="card-label">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Coming up today
+    </div>
+    <div id="next-body"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+  </div>
+
+  <!-- Full schedule -->
+  <div class="card span-12">
+    <div class="card-label">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Today's full schedule
+    </div>
+    <div id="sched-body"><div class="loading"><div class="spinner"></div>Loading…</div></div>
+  </div>
+
+</div>
+
+<script>
+const PROXY = '/api/arbox';
+const REFRESH_MS = 5 * 60 * 1000;
+
+function tick() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  document.getElementById('date-str').textContent =
+    now.toLocaleDateString('en-IL', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
+setInterval(tick, 1000); tick();
+
+function pad(n) { return String(n).padStart(2,'0'); }
+function toMin(t) { if(!t) return -1; const [h,m]=t.split(':'); return parseInt(h)*60+parseInt(m||0); }
+function fmt(t) { if(!t) return ''; const [h,m]=t.split(':'); return pad(parseInt(h))+':'+m; }
+function nowMin() { const n=new Date(); return n.getHours()*60+n.getMinutes(); }
+function isNow(c) {
+  const s=toMin(c.start_time), e=toMin(c.end_time), nm=nowMin();
+  return s>=0 && nm>=s && nm<(e>0?e:s+60);
+}
+
+function getCoach(c) {
+  if (c.staff_member && c.staff_member.name) return c.staff_member.name;
+  if (typeof c.staff_member === 'string') return c.staff_member;
+  return '';
+}
+
+function getParticipants(c) {
+  // registration_details returns array of registrations
+  if (Array.isArray(c.registration_details)) return c.registration_details;
+  if (Array.isArray(c.registrations)) return c.registrations;
+  return [];
+}
+
+function getSpots(c) {
+  var max = parseInt(c.max_participants) || 0;
+  var registered = parseInt(c.registration_count) || 0;
+  return { max: max, registered: registered, available: max - registered };
+}
+
+async function apiFetch(action) {
+  const r = await fetch(PROXY + '?action=' + action);
+  const text = await r.text();
+  if (!r.ok) throw new Error(text.slice(0,300));
+  const json = JSON.parse(text);
+  return Array.isArray(json) ? json : (json.data || json);
+}
+
+function renderNow(classes) {
+  const cur = classes.find(isNow);
+  const el = document.getElementById('now-body');
+  if (!cur) {
+    el.innerHTML = '<div class="no-class">No class running right now</div>';
+    return null;
+  }
+  const coach = getCoach(cur);
+  const spots = getSpots(cur);
+  const spotsHtml = spots.max > 0
+    ? '<span class="pill ' + (spots.available > 0 ? 'green' : 'red') + '">' +
+      (spots.available > 0 ? spots.registered + '/' + spots.max + ' registered' : 'Full') + '</span>'
+    : '';
+  el.innerHTML =
+    '<div class="now-name">' + (cur.session_name || 'Class') + '</div>' +
+    '<div class="now-time">' + fmt(cur.start_time) + ' – ' + fmt(cur.end_time) + '</div>' +
+    '<div class="pill-row">' +
+      (coach ? '<span class="pill">' + coach + '</span>' : '') +
+      spotsHtml +
+    '</div>';
+  return cur;
+}
+
+function renderParticipants(curClass) {
+  const el = document.getElementById('participants-body');
+  if (!curClass) {
+    el.innerHTML = '<div class="empty">No class running right now</div>';
+    return;
+  }
+  const people = getParticipants(curClass);
+  const spots  = getSpots(curClass);
+  if (!people.length) {
+    el.innerHTML =
+      '<div class="empty">' +
+        (spots.registered > 0
+          ? spots.registered + ' registered (names not available)'
+          : 'No registrations yet') +
+      '</div>';
+    return;
+  }
+  var html = '<div class="participants-list">';
+  for (var i = 0; i < people.length; i++) {
+    var p = people[i];
+    var name = (p.first_name || '') + ' ' + (p.last_name || '');
+    if (!name.trim()) name = p.name || p.user_name || 'Member';
+    html += '<div class="participant-row"><span class="num">' + (i+1) + '</span>' + name.trim() + '</div>';
+  }
+  html += '</div>';
+  if (spots.max > 0) {
+    html += '<div style="font-size:11px;color:var(--faint);margin-top:8px">' +
+      spots.registered + ' of ' + spots.max + ' spots filled</div>';
+  }
+  el.innerHTML = html;
+}
+
+function renderWOD(classes) {
+  const el = document.getElementById('wod-body');
+  // Find class with session_name containing WOD or W.O.D
+  var wod = classes.find(function(c) {
+    var n = (c.session_name || '').toLowerCase();
+    return n.indexOf('wod') >= 0 || n.indexOf('w.o.d') >= 0 || n.indexOf('workout') >= 0;
+  });
+  if (!wod) {
+    // Just show first class of the day as WOD
+    wod = classes[0];
+  }
+  if (!wod) {
+    el.innerHTML = '<div class="wod-empty">No workout found for today.</div>';
+    return;
+  }
+  var noteHtml = wod.note
+    ? '<div class="wod-note">' + wod.note + '</div>'
+    : (wod.custom_field_value && wod.custom_field_value.length
+        ? '<div class="wod-note">' + wod.custom_field_value.join('\n') + '</div>'
+        : '<div class="wod-empty" style="margin-top:8px">No workout description added in Arbox yet.<br>Add it in the class Notes field.</div>');
+  el.innerHTML =
+    '<div class="wod-name">' + (wod.session_name || 'W.O.D') + '</div>' +
+    '<div class="wod-time">' + fmt(wod.start_time) + ' – ' + fmt(wod.end_time) + '</div>' +
+    noteHtml;
+}
+
+function renderNext(classes) {
+  const nm = nowMin();
+  const up = classes.filter(function(c){ return toMin(c.start_time) > nm; }).slice(0,6);
+  const el = document.getElementById('next-body');
+  if (!up.length) { el.innerHTML='<div class="empty">No more classes today 🎉</div>'; return; }
+  var html = '<div class="next-list">';
+  for (var i=0; i<up.length; i++) {
+    var c = up[i];
+    var spots = getSpots(c);
+    var spotsTag = spots.max > 0
+      ? '<span class="next-spots' + (spots.available <= 0 ? ' full' : '') + '">' +
+        (spots.available > 0 ? spots.available + ' left' : 'Full') + '</span>'
+      : '';
+    html += '<div class="next-row">' +
+      '<span class="next-t">' + fmt(c.start_time) + '</span>' +
+      '<span class="next-name">' + (c.session_name || 'Class') + '</span>' +
+      '<span class="next-coach">' + getCoach(c) + '</span>' +
+      spotsTag +
+      '</div>';
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderSchedule(classes) {
+  const el = document.getElementById('sched-body');
+  if (!classes.length) { el.innerHTML='<div class="empty">No classes found for today.</div>'; return; }
+  var html = '<table class="sched-table">' +
+    '<thead><tr><th>Time</th><th>Class</th><th>Coach</th><th>Spots</th><th>Participants</th></tr></thead><tbody>';
+  for (var i=0; i<classes.length; i++) {
+    var c = classes[i];
+    var now = isNow(c);
+    var spots = getSpots(c);
+    var people = getParticipants(c);
+    var spotsHtml = spots.max > 0
+      ? '<span class="spots-badge ' + (spots.available > 0 ? 'spots-ok' : 'spots-no') + '">' +
+        spots.registered + '/' + spots.max + '</span>'
+      : '—';
+    var namesHtml = people.length > 0
+      ? '<div class="names-cell">' + people.map(function(p){
+          return ((p.first_name||'') + ' ' + (p.last_name||'')).trim() || p.name || 'Member';
+        }).join(' · ') + '</div>'
+      : (spots.registered > 0 ? '<span style="color:var(--faint);font-size:11px">' + spots.registered + ' registered</span>' : '—');
+    html += '<tr class="' + (now ? 'is-now' : '') + '">' +
+      '<td class="t-time">' + fmt(c.start_time) + ' – ' + fmt(c.end_time) +
+        (now ? '<span class="now-tag">Now</span>' : '') + '</td>' +
+      '<td class="t-name">' + (c.session_name || 'Class') + '</td>' +
+      '<td class="t-coach">' + getCoach(c) + '</td>' +
+      '<td>' + spotsHtml + '</td>' +
+      '<td>' + namesHtml + '</td>' +
+      '</tr>';
+  }
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+var refreshTimer = null;
+async function loadAll() {
+  document.getElementById('refresh-btn').classList.add('spinning');
+  var loading = '<div class="loading"><div class="spinner"></div>Loading…</div>';
+  ['now-body','participants-body','wod-body','next-body','sched-body'].forEach(function(id){
+    document.getElementById(id).innerHTML = loading;
+  });
+
+  try {
+    var raw = await apiFetch('schedule');
+    var classes = Array.isArray(raw) ? raw : [];
+    classes.sort(function(a,b){ return toMin(a.start_time)-toMin(b.start_time); });
+
+    var curClass = renderNow(classes);
+    renderParticipants(curClass);
+    renderWOD(classes);
+    renderNext(classes);
+    renderSchedule(classes);
+  } catch(e) {
+    ['now-body','participants-body','wod-body','next-body','sched-body'].forEach(function(id){
+      document.getElementById(id).innerHTML = '<div class="empty" style="color:var(--red)">' + e.message + '</div>';
+    });
+  }
+
+  document.getElementById('refresh-btn').classList.remove('spinning');
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(loadAll, REFRESH_MS);
+}
+
+loadAll();
+</script>
+</body>
+</html>
